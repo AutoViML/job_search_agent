@@ -1,5 +1,5 @@
 # 🤖 Adzuna Gemini Job Search Agent
--- created by Ram Seshadri (2026)
+created by Ram Seshadri (2026)
 
 > **Find the best-matched job listings from Adzuna — automatically.**
 >
