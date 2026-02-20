@@ -1,9 +1,18 @@
 # 🤖 Adzuna Gemini Job Search Agent
-created by Ram Seshadri (2026)
 
-> **Find the best-matched job listings from Adzuna — automatically.**
->
-> Searches multiple roles and locations, uses Gemini AI to cut through the noise, and delivers a clean CSV file you can click through in seconds.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/AI-Google_Gemini-4285F4?style=flat-square&logo=google-cloud&logoColor=white" alt="Gemini">
+  <img src="https://img.shields.io/badge/API-Adzuna-00A651?style=flat-square" alt="Adzuna">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128?style=flat-square" alt="License">
+</p>
+
+---
+
+### 🚀 Smart, Automated, and Deeply Personalized Job Hunting
+**Adzuna Gemini Agent** is a high-performance career tool that bridges the gap between massive job databases and your specific career stage. By combining the **Adzuna API** with **Google's Gemini LLM**, it doesn't just find jobs—it *understands* them.
+
+**Created by Ram Seshadri (2026)**
 
 ---
 
