@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 """
-Streamlined Adzuna Job Search — Direct Script (no CrewAI overhead)
-
-Steps:
-  1. Fetch jobs from Adzuna for multiple search queries
-  2. Use Gemini to filter and select best matches for the candidate profile
-  3. Write clean CSV: Company, Role, Location, Salary, Link
-
-Usage:
-  python run_search.py             # TEST mode (5 jobs/query from .env)
-  TEST_RUN=False python run_search.py  # Full run (20 jobs/query)
+CONSOLIDATED Adzuna Job Search — High Performance Edition
+Features:
+  - Phase 1: Adzuna Fetching (Caching to raw_results.json)
+  - Phase 2: Async Gemini Filtering (Rate-limited to 30 calls/min)
+  - STRICT FILTER Mode logic matched from test_prompt.py
 """
 
+import asyncio
 import csv
 import json
 import os
@@ -19,16 +15,19 @@ import sys
 import time
 import requests
 from pathlib import Path
+from datetime import datetime
 from dotenv import load_dotenv
+from google import genai
 
 load_dotenv()
 
 # ============================================================
-# CONFIG
+# CONFIG & PATHS
 # ============================================================
 ADZUNA_APP_ID  = os.getenv("ADZUNA_APP_ID")
 ADZUNA_API_KEY = os.getenv("ADZUNA_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 ADZUNA_BASE_URL = "https://api.adzuna.com/v1/api/jobs"
 
 TEST_RUN   = os.getenv("TEST_RUN", "True").lower() == "true"
@@ -36,34 +35,91 @@ TEST_LIMIT = int(os.getenv("TEST_LIMIT", "5"))
 FULL_LIMIT = int(os.getenv("ADZUNA_LIMIT_PER_SEARCH", "50"))
 NUM_RESULTS = TEST_LIMIT if TEST_RUN else FULL_LIMIT
 DISTANCE_KM = int(os.getenv("DISTANCE_KM", "40"))
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
-LLM_CHUNK_SIZE = int(os.getenv("LLM_CHUNK_SIZE", "20"))
 
-# Search queries — read from .env as comma-separated list
-_raw_queries = os.getenv("SEARCH_QUERIES", "entry level engineer,new graduate engineer,product design engineer,packaging engineer")
+_raw_queries = os.getenv("SEARCH_QUERIES", "entry level engineer")
 SEARCH_QUERIES = [q.strip() for q in _raw_queries.split(",") if q.strip()]
 
-# Locations — read from .env as comma-separated list
 _raw_locations = os.getenv("SEARCH_LOCATIONS", "New York")
 SEARCH_LOCATIONS = [loc.strip() for loc in _raw_locations.split(",") if loc.strip()]
 
 OUTPUT_DIR = Path(__file__).parent / "outputs"
-OUTPUT_DIR.mkdir(exist_ok=True)
-
-# Route to test_results/ or search_results/ based on mode
 _run_subdir = OUTPUT_DIR / ("test_results" if TEST_RUN else "search_results")
-_run_subdir.mkdir(exist_ok=True)
+_run_subdir.mkdir(parents=True, exist_ok=True)
 
-from datetime import datetime
+RAW_JSON_PATH = _run_subdir / "raw_results.json"
+BAK_JSON_PATH = _run_subdir / "raw_results.bak"
+
 _timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 CSV_PATH = _run_subdir / f"curated_matches_{_timestamp}.csv"
 
-CANDIDATE_PROFILE = """
-Mechanical Engineering graduate (May 2026) with a 3.52 GPA, seeking entry-level roles. Key skills include CAD (Solidworks, NX, Fusion, Creo), System Verilog, and mechanical design. Target industries: Semiconductor manufacturing, Semiconductor Equipment, Robotics, Big Tech, and Manufacturing. Experience includes internships in semiconductor equipment and robotics, along with research applying neural networks and leadership roles in engineering consulting.
+# Load candidate profile
+PROFILE_PATH = Path(__file__).parent / "_candidate_profile.txt"
+if PROFILE_PATH.exists():
+    CANDIDATE_PROFILE = PROFILE_PATH.read_text(encoding="utf-8").strip()
+else:
+    CANDIDATE_PROFILE = "Candidate: Purdue University, BS Mechanical Engineering\nGraduating: May 2026 (entry-level)\nExperience: 0 years."
+
+async def detect_experience_level_async(client, profile: str) -> str:
+    """Use Gemini to detect experience level (NEW_GRAD, MID_LEVEL, or SENIOR)."""
+    PROMPT = f"""Below is a candidate's profile. Categorize their experience into exactly ONE of these tags:
+- NEW_GRAD (0-2 years experience, entry-level, internship focus)
+- MID_LEVEL (3-7 years experience, established professional)
+- SENIOR (8+ years experience, leadership, staff, or advanced professional roles)
+
+CANDIDATE PROFILE:
+{profile}
+
+Return ONLY the tag (NEW_GRAD, MID_LEVEL, or SENIOR). No punctuation or other text.
 """
+    try:
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=PROMPT)
+        res = response.text.strip().upper()
+        if "SENIOR" in res: return "SENIOR"
+        if "MID_LEVEL" in res: return "MID_LEVEL"
+        return "NEW_GRAD"
+    except Exception as e:
+        print(f"  ⚠️ Level detection failed ({e}), defaulting to NEW_GRAD.")
+        return "NEW_GRAD"
+
+# ============================================================
+# FILTER RULES BY MODE
+# ============================================================
+
+RULES_MASTER = {
+    "NEW_GRAD": {
+        "label": "NEW GRADUATE (0-2 years)",
+        "rules": """- Candidate has 0 years full-time experience.
+- SCAN for: "3+", "5+", "10+". If found, REJECT.
+- SCAN for: "Senior", "Lead", "Staff", "Manager", "Principal", "II", "III". If found, REJECT.
+- If the description is a TRUNCATED SNIPPET (ends in '…') and doesn't mention "entry" or "graduate", REJECT it.
+- We prefer to miss a good job than recommend a senior job.""",
+        "exclusion_list": ["senior", "lead", "principal", "manager", "director", "architect", "vp", "head", "sr.", "staff"]
+    },
+    "MID_LEVEL": {
+        "label": "MID-LEVEL PROFESSIONAL (3-7 years)",
+        "rules": """- Candidate has ~5 years of experience.
+- REJECT: "Entry Level", "Junior", "Graduate", "Intern". (Too junior)
+- REJECT: "Principal", "Director", "VP", "Architect", "Staff", "Head". (Too senior)
+- SELECT: Roles requiring 3-8 years, "Software Engineer II/III", "Senior" (if listing ~5yrs).
+- If snippet is truncated and looks like a junior role, REJECT.""",
+        "exclusion_list": ["junior", "intern", "graduate", "principal", "director", "vp", "architect", "staff", "head"]
+    },
+    "SENIOR": {
+        "label": "SENIOR/EXECUTIVE (8+ years)",
+        "rules": """- Candidate has 8+ years of experience.
+- REJECT: "Junior", "Entry", "Associate", "II", "III". (Too junior)
+- SELECT: "Staff", "Principal", "Director", "VP", "Architect", "Lead".
+- SCAN for: "10+", "15+". These are target roles.""",
+        "exclusion_list": ["junior", "entry", "intern", "associate", "graduate"]
+    }
+}
+
+# These will be set dynamically in main()
+EXPERIENCE_LEVEL = "NEW_GRAD"
+ACTIVE_MODE      = RULES_MASTER["NEW_GRAD"]
 
 FILTER_PROMPT_TEMPLATE = """You are an ELITE career advisor. Your reputation is built on high PRECISION.
-You are filtering jobs for a NEW GRADUATE with ZERO years of experience.
+You are filtering jobs for a {level_label}.
 
 CANDIDATE PROFILE:
 {profile}
@@ -74,43 +130,42 @@ JOBS TO EVALUATE (JSON list):
 FEW-SHOT EXAMPLES:
 
 Example 1 (REJECT): 
-  Title: "Manufacturing Engineer"
-  Snippet: "...responsible for optimizing production for our power line products..."
-  Reason: Too generic. If it's a high-paying role ($100k+) and the snippet doesn't explicitly say "junior" or "entry", be suspicious and REJECT.
+  Title: "Job title that doesn't fit seniority"
+  Snippet: "...requires 10+ years of experience in leadership..."
+  Reason: Seniority mismatch. REJECT.
 
 Example 2 (REJECT):
-  Title: "Characterization Engineer"
-  Snippet: "...NY CREATES is seeking a highly skilled individual..."
-  Reason: "Highly skilled" and "leads projects" are keywords for senior roles. REJECT.
+  Title: "Job title that is too junior"
+  Snippet: "...seeking a fresh graduate for our internship program..."
+  Reason: Seniority mismatch. REJECT.
 
 Example 3 (SELECT):
-  Title: "Entry Level Designer"
-  Snippet: "Seeking university graduates for our 2026 rotational program..."
-  Reason: Explicitly mentions "university graduates" and "entry level". SELECT.
+  Title: "Correct Level Role"
+  Snippet: "...seeking a professional with relevant skills and experience in this field..."
+  Reason: Good alignment with profile and seniority. SELECT.
 
 CRITICAL FILTERING RULES:
-1. EXPERIENCE LEVEL (STRICT FILTER Mode):
-   - Candidate has 0 years full-time experience.
-   - SCAN for: "3+", "5+", "10+". If found, REJECT.
-   - SCAN for: "Senior", "Lead", "Staff", "Manager", "Principal", "II", "III". If found, REJECT.
-   - If the description is a TRUNCATED SNIPPET (ends in '…') and doesn't mention "entry" or "graduate", REJECT it. 
-   - We prefer to miss a good job than recommend a senior job.
+1. EXPERIENCE LEVEL (STRICT FILTER Mode - {experience_level}):
+{mode_rules}
 
 2. INDUSTRY RELEVANCE:
-   - Mechanical, Product Design, Semiconductor, Robotics, Manufacturing.
+   - Match industry keywords from the profile (e.g., Mechanical/Finance/Software).
 
 3. DOUBT = REJECTION:
-   - This prevents the "sneaky" senior roles that use generic titles from slipping through.
+   - High precision only. If seniority or alignment is unclear, REJECT.
 
-Return ONLY a raw JSON array of ID strings.
+Return a JSON object with:
+{{
+  "decision": "SELECTED" or "REJECTED",
+  "reasoning": "Explain exactly why you made this choice based on the rules."
+}}
 """
 
 # ============================================================
-# ADZUNA FETCH
+# PHASE 1: FETCHING
 # ============================================================
 
-def fetch_jobs(role: str, location: str, num_results: int, distance_km: int) -> list[dict]:
-    """Fetch raw job listings from Adzuna API."""
+def fetch_adzuna_jobs(role: str, location: str, num_results: int, distance_km: int) -> list[dict]:
     url = (
         f"{ADZUNA_BASE_URL}/us/search/1"
         f"?app_id={ADZUNA_APP_ID}"
@@ -125,197 +180,182 @@ def fetch_jobs(role: str, location: str, num_results: int, distance_km: int) -> 
         resp = requests.get(url, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        results = data.get("results", [])
-        print(f"  ✓ '{role}' → {len(results)} jobs found")
-        return results
+        return data.get("results", [])
     except Exception as e:
         print(f"  ✗ '{role}' → Error: {e}")
         return []
 
-
-# ============================================================
-# GEMINI LLM FILTER
-# ============================================================
-
-def gemini_filter(jobs: list[dict], chunk_size: int = LLM_CHUNK_SIZE) -> list[str]:
-    """Ask Gemini to select the best-matching job IDs."""
-    if not jobs:
-        return []
-
-    from google import genai
-    from google.genai import types
-
-    client = genai.Client(api_key=GEMINI_API_KEY)
-
-    selected_ids = []
-
-    # Process in chunks to avoid token limits
-    for i in range(0, len(jobs), chunk_size):
-        chunk = jobs[i:i + chunk_size]
-        
-        # Heuristic filter: Still skip obvious Senior/Lead roles to save tokens.
-        # But we remove more moderate terms like "II" or "Staff" from the hard blacklist 
-        # to let the LLM decide, while keeping "Senior", "Lead", "Director" etc.
-        filtered_chunk = []
-        hard_blacklist = ["senior", "lead", "principal", "manager", "director", "architect", "vp", "head", "sr."]
-        for job in chunk:
-            title_lower = (job.get("title") or "").lower()
-            if any(word in title_lower for word in hard_blacklist):
-                continue
-            filtered_chunk.append(job)
-
-        if not filtered_chunk:
-            print(f"  🤖 chunk {i//chunk_size + 1}: skipped all {len(chunk)} (senior/lead titles)")
-            continue
-
-        # Build minimal job summaries for the LLM
-        job_summaries = []
-        for job in filtered_chunk:
-            co = job.get("company", {}).get("display_name", "N/A") if isinstance(job.get("company"), dict) else "N/A"
-            loc = job.get("location", {}).get("display_name", "N/A") if isinstance(job.get("location"), dict) else "N/A"
-            # EXTEND SNIPPET to 2000 characters to catch "Requirements" sections
-            job_summaries.append({
-                "id": job.get("id"),
-                "title": job.get("title"),
-                "company": co,
-                "location": loc,
-                "description_snippet": (job.get("description", "") or "")[:2000],
-                "salary_min": job.get("salary_min"),
-                "salary_max": job.get("salary_max"),
-            })
-
-        prompt = FILTER_PROMPT_TEMPLATE.format(
-            profile=CANDIDATE_PROFILE,
-            jobs_json=json.dumps(job_summaries, indent=2)
-        )
-
-        try:
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-            )
-            text = response.text.strip()
-            # Strip markdown code fences if present
-            if text.startswith("```"):
-                lines = text.split("\n")
-                text = "\n".join(lines[1:]).rstrip("`").strip()
-            ids = json.loads(text)
-            if isinstance(ids, list):
-                selected_ids.extend([str(id_) for id_ in ids])
-                print(f"  🤖 chunk {i//chunk_size + 1}: selected {len(ids)} of {len(filtered_chunk)} candidates")
-        except Exception as e:
-            print(f"  ⚠️  LLM filter error on chunk {i//chunk_size + 1}: {e}")
-            # In case of error, we now safely return nothing for this chunk instead of everything
-    
-    return selected_ids
-
-
-# ============================================================
-# CSV WRITE
-# ============================================================
-
-def write_csv(jobs: list[dict], selected_ids: list[str], path: Path) -> int:
-    """Write the selected jobs to CSV."""
-    id_set = set(selected_ids)
-    job_index = {str(j.get("id")): j for j in jobs if j.get("id")}
-
-    rows = []
-    for jid in selected_ids:
-        job = job_index.get(jid)
-        if not job:
-            continue
-        co = job.get("company", {}).get("display_name", "N/A") if isinstance(job.get("company"), dict) else "N/A"
-        role = job.get("title", "N/A")
-        loc = job.get("location", {}).get("display_name", "N/A") if isinstance(job.get("location"), dict) else "N/A"
-        s_min = job.get("salary_min")
-        s_max = job.get("salary_max")
-        if s_min and s_max:
-            salary = f"${s_min:,.0f} - ${s_max:,.0f}"
-        elif s_min:
-            salary = f"${s_min:,.0f}+"
-        elif s_max:
-            salary = f"up to ${s_max:,.0f}"
-        else:
-            salary = "N/A"
-        link = job.get("redirect_url", "N/A")
-        rows.append([co, role, loc, salary, link])
-
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Company", "Role", "Location", "Salary", "Link"])
-        writer.writerows(rows)
-
-    return len(rows)
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main():
-    mode = "🧪 TEST" if TEST_RUN else "🚀 FULL"
-    print(f"""
-{'='*60}
-  Adzuna Job Search {mode} ({NUM_RESULTS} jobs/query, {DISTANCE_KM}km radius)
-  Locations : {', '.join(SEARCH_LOCATIONS)}
-  Queries   : {len(SEARCH_QUERIES)}
-  Total searches: {len(SEARCH_LOCATIONS) * len(SEARCH_QUERIES)}
-  Output    : {CSV_PATH}
-{'='*60}
-""")
-
-    if not ADZUNA_APP_ID or not ADZUNA_API_KEY:
-        print("❌ Missing ADZUNA_APP_ID or ADZUNA_API_KEY in .env")
-        sys.exit(1)
-    if not GEMINI_API_KEY:
-        print("❌ Missing GEMINI_API_KEY in .env")
-        sys.exit(1)
-
-    # Step 1: Fetch jobs across all locations and queries
-    print("📡 STEP 1: Fetching jobs from Adzuna...")
+def run_phase_1():
+    print(f"📡 Phase 1: Fetching jobs across {len(SEARCH_LOCATIONS)} locations...")
     all_jobs = []
     seen_ids = set()
+    
     for location in SEARCH_LOCATIONS:
         print(f"  📍 {location}")
         for query in SEARCH_QUERIES:
-            jobs = fetch_jobs(query, location, NUM_RESULTS, DISTANCE_KM)
+            jobs = fetch_adzuna_jobs(query, location, NUM_RESULTS, DISTANCE_KM)
             for job in jobs:
                 jid = str(job.get("id", ""))
                 if jid and jid not in seen_ids:
                     seen_ids.add(jid)
                     all_jobs.append(job)
-            time.sleep(0.3)  # be polite to the API
+            print(f"    ✓ '{query}' → {len(jobs)} jobs found")
+            time.sleep(0.3)
 
-    print(f"\n  📦 Total unique jobs fetched: {len(all_jobs)}")
-
-    if not all_jobs:
-        print("⚠️  No jobs found. Check your API credentials or search queries.")
-        sys.exit(0)
-
-    # Save raw dump for inspection
-    raw_path = _run_subdir / "raw_results.json"
-    with open(raw_path, "w", encoding="utf-8") as f:
+    print(f"\n📦 Total unique jobs fetched: {len(all_jobs)}")
+    with open(RAW_JSON_PATH, "w", encoding="utf-8") as f:
         json.dump({"total": len(all_jobs), "jobs": all_jobs}, f, indent=2)
-    print(f"  💾 Raw results saved to {raw_path}")
+    print(f"✅ Raw results cached to {RAW_JSON_PATH}")
 
-    # Step 2: LLM filter
-    print(f"\n🤖 STEP 2: Filtering with Gemini LLM...")
-    selected_ids = gemini_filter(all_jobs)
-    print(f"\n  ✅ {len(selected_ids)} jobs selected from {len(all_jobs)} total")
+# ============================================================
+# PHASE 2: FILTERING (ASYNC)
+# ============================================================
 
-    # Step 3: Write CSV
-    print(f"\n📄 STEP 3: Writing CSV...")
-    count = write_csv(all_jobs, selected_ids, CSV_PATH)
-    print(f"  ✅ Saved {count} rows to {CSV_PATH}")
+def clean_json_response(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
 
-    print(f"""
-{'='*60}
-  ✅ DONE! Open {CSV_PATH} to see your curated job matches.
-{'='*60}
-""")
+async def filter_job_async(client, job: dict, idx: int, total: int) -> str:
+    co = job.get("company", {}).get("display_name", "N/A") if isinstance(job.get("company"), dict) else "N/A"
+    loc = job.get("location", {}).get("display_name", "N/A") if isinstance(job.get("location"), dict) else "N/A"
+    
+    summary = [{
+        "id": job.get("id"),
+        "title": job.get("title"),
+        "company": co,
+        "location": loc,
+        "description_snippet": (job.get("description", "") or "")[:2000],
+    }]
 
+    prompt = FILTER_PROMPT_TEMPLATE.format(
+        profile=CANDIDATE_PROFILE, 
+        jobs_json=json.dumps(summary, indent=2),
+        level_label=ACTIVE_MODE["label"],
+        experience_level=EXPERIENCE_LEVEL,
+        mode_rules=ACTIVE_MODE["rules"]
+    )
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+            text = clean_json_response(response.text)
+            if not text:
+                raise ValueError("Empty response")
+            result = json.loads(text)
+            if result.get("decision") == "SELECTED":
+                return str(job.get("id"))
+            return None
+        except Exception:
+            if attempt == max_retries - 1:
+                return None
+            await asyncio.sleep((attempt + 1) * 3)
+    return None
+
+async def run_phase_2():
+    if not RAW_JSON_PATH.exists():
+        print("❌ No raw data found. This shouldn't happen.")
+        return
+
+    with open(RAW_JSON_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        all_jobs = data.get("jobs", [])
+
+    print(f"🤖 Phase 2: Filtering {len(all_jobs)} jobs using {GEMINI_MODEL}...")
+    
+    # Heuristic pre-filter using mode-specific exclusion list
+    exclusion_list = ACTIVE_MODE["exclusion_list"]
+    candidates = []
+    for j in all_jobs:
+        title = (j.get("title") or "").lower()
+        if not any(word in title for word in exclusion_list):
+            candidates.append(j)
+
+    print(f"  Heuristic: {len(candidates)} candidates remain after title filtering.")
+    print(f"  Parallel Evaluation (30 jobs/min rate limit)...")
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    semaphore = asyncio.Semaphore(5)
+    call_times = []
+    
+    async def rate_limited_filter(job, idx):
+        nonlocal call_times
+        async with semaphore:
+            while len(call_times) >= 30:
+                elapsed = time.time() - call_times[0]
+                if elapsed < 60:
+                    await asyncio.sleep(60 - elapsed + 0.1)
+                now = time.time()
+                call_times = [t for t in call_times if now - t < 60]
+            
+            call_times.append(time.time())
+            jid = await filter_job_async(client, job, idx, len(candidates))
+            if (idx + 1) % 10 == 0 or idx == len(candidates) - 1:
+                print(f"    Progress: {idx + 1}/{len(candidates)}...")
+            return jid
+
+    tasks = [rate_limited_filter(job, i) for i, job in enumerate(candidates)]
+    results = await asyncio.gather(*tasks)
+    selected_ids = [jid for jid in results if jid]
+
+    # Write CSV
+    print(f"\n📄 Phase 3: Writing {len(selected_ids)} curated matches to CSV...")
+    job_map = {str(j.get("id")): j for j in all_jobs}
+    
+    with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Company", "Role", "Location", "Salary", "Link"])
+        for jid in selected_ids:
+            j = job_map.get(jid)
+            if not j: continue
+            co = j.get("company", {}).get("display_name", "N/A") if isinstance(j.get("company"), dict) else "N/A"
+            loc = j.get("location", {}).get("display_name", "N/A") if isinstance(j.get("location"), dict) else "N/A"
+            s_min, s_max = j.get("salary_min"), j.get("salary_max")
+            salary = f"${s_min:,.0f} - ${s_max:,.0f}" if s_min and s_max else "N/A"
+            writer.writerow([co, j.get("title"), loc, salary, j.get("redirect_url")])
+
+    print(f"✅ DONE! Saved results to {CSV_PATH}")
+
+async def main():
+    if not ADZUNA_APP_ID or not ADZUNA_API_KEY or not GEMINI_API_KEY:
+        print("❌ Missing API keys in .env")
+        sys.exit(1)
+
+    print(f"{'='*60}\n  Adzuna Job Search: Consolidated Workflow\n{'='*60}")
+
+    global EXPERIENCE_LEVEL, ACTIVE_MODE
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    
+    print("🧠 Analyzing candidate seniority...")
+    EXPERIENCE_LEVEL = await detect_experience_level_async(client, CANDIDATE_PROFILE)
+    ACTIVE_MODE = RULES_MASTER.get(EXPERIENCE_LEVEL, RULES_MASTER["NEW_GRAD"])
+    print(f"🎯 Detected Experience Level: {EXPERIENCE_LEVEL} ({ACTIVE_MODE['label']})")
+
+    if RAW_JSON_PATH.exists():
+        print(f"♻️  Found existing {RAW_JSON_PATH.name}. Skipping Adzuna fetch phase.")
+    else:
+        run_phase_1()
+
+    await run_phase_2()
+
+    # Cleanup or Rename as per user request
+    if RAW_JSON_PATH.exists():
+        if BAK_JSON_PATH.exists():
+            BAK_JSON_PATH.unlink()
+        RAW_JSON_PATH.rename(BAK_JSON_PATH)
+        print(f"💾 Renamed {RAW_JSON_PATH.name} to {BAK_JSON_PATH.name} for cleanup.")
 
 if __name__ == "__main__":
-    start = time.time()
-    main()
-    print(f"⏱  Total time: {time.time() - start:.1f}s")
+    start_time = time.time()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n\n👋 Cancelled by user.")
+    print(f"⏱  Total run time: {time.time() - start_time:.1f}s")

@@ -34,17 +34,14 @@ ENV/
 _old/
 
 # ── Private User Data ────────────────────────────────────────
-# Your personal resume — NEVER commit this
+# Your personal resume and derived profiles — NEVER commit these
 my_profile.pdf
+_candidate_profile.txt
 *.pdf
 
-# Search outputs (can be large; regenerate locally)
-outputs/test_results/
-outputs/search_results/
-outputs/*.csv
-outputs/*.json
-outputs/*.txt
-outputs/*.md
+# ── Project Outputs ──────────────────────────────────────────
+# Ignore all search results and data, but keep the folder structure
+outputs/**
 !outputs/.gitkeep
 
 # Logs

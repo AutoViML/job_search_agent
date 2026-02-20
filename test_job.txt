@@ -1,47 +1,72 @@
-Robotics Engineer
+Product Design Engineer
 
 ❮ back to last search
-Radical AI
-New York, New York
-$64,545 per year - estimated ?
-Full time
+Meta
+New York, New York, 10176
+$154,420 per year - estimated ?
+Direct Employers
+CLOSING SOON
 Apply for this job
-Radical AI, Inc. is an artificial intelligence company that is accelerating scientific research & development. We are at the forefront of innovation in the field of materials R&D, a critical driver for advancing our most cutting-edge industries and shaping the future. Breaking away from the traditionally slow and costly R&D process, Radical AI leverages artificial intelligence and machine learning to pioneer generative materials science. This innovative field blends AI, engineering, and materials science, revolutionizing how materials are created and discovered. Radical AI's approach speeds up R&D and addresses global challenges, setting new benchmarks in technology and sustainability.
-The opportunityAs a Software Engineer in the Robotics and Automation group at Radical AI, you will design and deploy systems to automate our material science research and discovery laboratory. You will specialize in robotics, automation, and perception software development.
-Your experience and vision will shape both the physical and systematic implementation of lab automation. You will collaborate closely with Mechatronics, Mechanical Engineering and Material Scientists to meet rigorous and sometimes dynamic design requirements at a profound deployment speed. Mission
-Architect and develop software systems that control and orchestrate robotic workcells for autonomous materials experimentation
-Design scalable control frameworks for flexible automation involving robots, motion systems, sensors, and lab instruments
-Collaborate with hardware, mechatronics, and science teams to translate experimental workflows into reliable automated processes
-Build and maintain APIs and services for scheduling, execution, monitoring, and data capture
-Develop simulation, testing, and validation tools to accelerate development and ensure system reliability
-Integrate 2D and 3D vision systems (cameras, lighting, depth sensors) with robotic manipulation, motion planning, and execution
-Optimize system performance, robustness, and throughput under rapid iteration cycles
-Contribute to technical direction, architecture decisions, and best practices across the robotics, perception, and automation software stack
-Mentor junior engineers and help establish engineering standards in a fast-growing organization
-Bring an attitude of collaboration and open-mindedness, to facilitate fearless and creative problem solving skills that empowers our team to ship world class technology at an unprecedented speed.
-About you
-Bachelor’s or Master’s degree in Computer Science, Robotics, Electrical Engineering, or a related field
-Four+ years of professional software engineering experience, with significant work in robotics or automation systems
-Strong proficiency in modern programming languages such as Python and C++
-Experience with robotic control frameworks (e.g., ROS/ROS2 or equivalent custom systems)
-Experience with physical simulation environments (e.g. MuJoCo, IsaacSim), and hardware-in-the-loop testing
-Solid understanding of motion planning, state machines, real-time or near-real-time control systems
-Experience integrating hardware systems including robots, sensors, vision systems, and industrial equipment
-Ability to work independently in a hands-on, development-oriented environment.
-Strong communication skills and ability to collaborate across engineering and scientific disciplines.
-Pluses
-Experience deploying autonomous systems in laboratory, manufacturing, or industrial environments
-Experience deploying autonomous mobile robots and working with simultaneous localization and mapping (SLAM)
-Experience with reinforcement learning and computer vision applied to robotics
-Familiarity with machine learning applied to robotics, experimentation, or optimization
-Prior startup experience or ownership of systems from early prototype through production
-What we offer
-A competitive compensation package also includes the best in benefits.
-Medical, dental, and vision insurance for you and your family
-Mental health and wellness support
-14+ company holidays per year
-401K
-Work closely with a team on the cutting edge of AI research.
-A mission: an opportunity to fundamentally change the way humanity makes progress through materials science discovery.
-Salary Description
-Competitive salary + Equity + Benefits; base pay offered may vary depending on job-related knowledge, skills, and experience.
+**Summary:**
+
+At Reality Labs we aim to bring together the brightest cross-disciplinary minds in one place to deliver on our mission: build tools that help people feel connected, anytime, anywhere. As a Product Design Engineer, you will take a critical role in developing hardware systems for MR, AR, or New Technology Initiatives. You will become part of a team exploring developing concepts through prototyping and into mass-production consumer electronics. You will work as part of a cross functional team requiring collaboration and curiosity in domains other than mechanical engineering. Our team supports mechanical engineering fundamentals, prototyping skills, CAD fluency, manufacturing process knowledge, and experience designing consumer electronics.
+
+**Required Skills:**
+
+Product Design Engineer Responsibilities:
+
+1. Lead the mechanical design for a particular component, feature or system while having end-to-end product development understanding
+
+2. Contribute to mechanical solutions as part of a highly cross-functional team
+
+3. Model, build, test, and refine prototypes and characterization test systems
+
+4. Work across the full product development cycle, from concept inception to shipping product
+
+5. Collaborate and manage work with Asia-based Supply Chain
+
+6. Push state-of-the-art technologies and approaches to solving complex mechanical problems while working with cross functional technical teams
+
+7. Travel to external vendors up to 20%
+
+**Minimum Qualifications:**
+
+Minimum Qualifications:
+
+8. BS in Mechanical Engineering or equivalent industry experience
+
+9. 6+ years of industry experience in mechanical design
+
+10. Experience in Design for Manufacturability (DFM), Design for Assembly (DFA), statistical tolerance analysis techniques, functional dimensioning, GD&T, and 3D/2D CAD
+
+11. Working knowledge in material properties, such as plastics, metal, adhesive, and glass
+
+12. Testing and analysis experience (FEA, Simulation, Design of Experiments, etc.)
+
+13. Knowledge of high-volume manufacturing techniques (stamping, machining, 3D printing, injection molding, etc.)
+
+**Preferred Qualifications:**
+
+Preferred Qualifications:
+
+14. 8+ years of product design and development experience of handheld and/or wearable high-volume consumer electronics, including complex subsystems and/or full systems ownership
+
+15. Experience with NX CAD
+
+16. Experience with highly cosmetic products and working with Industrial Design
+
+17. Fluency in Mandarin and/or Cantonese
+
+18. Experience designing for human factors
+
+19. Experience designing and shipping products with Asia-based supply chains
+
+20. MS or PhD in Mechanical Engineering
+
+**Public Compensation:**
+
+$144,000/year to $204,000/year + bonus + equity + benefits
+
+**Industry:** Internet
+
+**Equal Opportunity:**

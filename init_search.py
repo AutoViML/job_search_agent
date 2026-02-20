@@ -29,6 +29,7 @@ OBJECTIVES_PATH = BASE_DIR / "search_objectives.txt"
 PROFILE_PDF_PATH = BASE_DIR / "my_profile.pdf"
 ENV_PATH = BASE_DIR / ".env"
 RUN_SCRIPT_PATH = BASE_DIR / "run_search.py"
+CANDIDATE_PROFILE_PATH = BASE_DIR / "_candidate_profile.txt"
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
@@ -261,23 +262,9 @@ def update_env(extracted: dict) -> None:
 
 
 def update_candidate_profile(profile_text: str) -> None:
-    """Replace the CANDIDATE_PROFILE block in run_search.py."""
-    if not RUN_SCRIPT_PATH.exists():
-        print(f"  ⚠️  {RUN_SCRIPT_PATH.name} not found — skipping profile update")
-        return
-
-    script = RUN_SCRIPT_PATH.read_text(encoding="utf-8")
-
-    # Match the CANDIDATE_PROFILE = """...""" block
-    pattern = r'(CANDIDATE_PROFILE\s*=\s*""")(.*?)(""")'
-    escaped_profile = profile_text.replace("\\", "\\\\")
-    new_script, n = re.subn(pattern, rf'\g<1>\n{escaped_profile}\n\g<3>', script, flags=re.DOTALL)
-
-    if n:
-        RUN_SCRIPT_PATH.write_text(new_script, encoding="utf-8")
-        print(f"  ✓ CANDIDATE_PROFILE in {RUN_SCRIPT_PATH.name} updated")
-    else:
-        print(f"  ⚠️  Could not locate CANDIDATE_PROFILE block in {RUN_SCRIPT_PATH.name}")
+    """Save the candidate profile to a dedicated text file."""
+    CANDIDATE_PROFILE_PATH.write_text(profile_text, encoding="utf-8")
+    print(f"  ✓ Candidate profile saved to {CANDIDATE_PROFILE_PATH.name}")
 
 
 # ============================================================
@@ -327,9 +314,9 @@ def main():
 ─────────────────────────────────────────────────""")
 
         # ── 5. Confirm before writing
-        print("\nDo you want to apply these to .env and run_search.py?")
-        print("  [Y] Yes — update .env + candidate profile")
-        print("  [N] No  — keep current .env and just validate")
+        print(f"\nDo you want to apply these to .env and {CANDIDATE_PROFILE_PATH.name}?")
+        print(f"  [Y] Yes — update .env + {CANDIDATE_PROFILE_PATH.name}")
+        print("  [N] No  — keep current settings")
         choice = input("  Your choice [Y/n]: ").strip().lower()
 
         if choice in ("y", "yes", ""):
