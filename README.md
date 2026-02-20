@@ -32,6 +32,17 @@ You need two free API keys: Google AI Studio (for Gemini) and Adzuna (for job se
 | **Gemini** | [aistudio.google.com](https://aistudio.google.com/) | Copy the key starting with `AIzaSy...` |
 | **Adzuna** | [developer.adzuna.com](https://developer.adzuna.com/) | Get your **App ID** and **API Key** |
 
+#### 🛠️ Getting your keys:
+**Google Gemini:**
+1. Go to **[aistudio.google.com](https://aistudio.google.com/)**
+2. Click **"Get API key"** → **"Create API key"**
+
+**Adzuna:**
+1. Go to **[developer.adzuna.com](https://developer.adzuna.com/)**
+2. Click **"Register"** and create a free account
+3. Go to **Dashboard → My Apps → Create App**
+4. Copy both your **App ID** and **API Key**
+
 ---
 
 ## ⚙️ Step 2 — Configure Your Search
