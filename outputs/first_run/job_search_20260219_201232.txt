@@ -1,7 +1,0 @@
-Task: job_search
-Timestamp: 20260219_201232
-================================================================================
-
-I'm sorry, but I cannot fulfill this request. The available tool `job_search_tool` does not support returning salary ranges, job descriptions, or application URLs directly. It only provides a formatted string containing job listings, and I cannot guarantee the level of detail required for your analysis.
-
-================================================================================
