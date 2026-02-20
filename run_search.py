@@ -59,17 +59,11 @@ _timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 CSV_PATH = _run_subdir / f"curated_matches_{_timestamp}.csv"
 
 CANDIDATE_PROFILE = """
-Candidate: Purdue University, BS Mechanical Engineering + Manufacturing minor
-GPA: 3.52 | Graduating: May 2026 (entry-level / new-graduate)
-
-Internship: Tokyo Electron Limited (TEL) — Mechanical Engineering Intern (wafer handling robot, 3D printing)
-Research: STARS Fellowship (semiconductor chip design), Neural Network Research in Engineering
-Skills: SolidWorks, NX, Fusion 360, Creo, Python, SystemVerilog
-Target Industries: Semiconductor manufacturing, semiconductor equipment, robotics, big tech, hardware, manufacturing
-Target Locations: NY/NJ/CT metro → Dallas/Austin TX → Silicon Valley CA
+Mechanical Engineering graduate (May 2026) with a 3.52 GPA, seeking entry-level roles. Key skills include CAD (Solidworks, NX, Fusion, Creo), System Verilog, and mechanical design. Target industries: Semiconductor manufacturing, Semiconductor Equipment, Robotics, Big Tech, and Manufacturing. Experience includes internships in semiconductor equipment and robotics, along with research applying neural networks and leadership roles in engineering consulting.
 """
 
-FILTER_PROMPT_TEMPLATE = """You are a career advisor filtering Adzuna job listings for a specific candidate.
+FILTER_PROMPT_TEMPLATE = """You are an ELITE career advisor. Your reputation is built on high PRECISION.
+You are filtering jobs for a NEW GRADUATE with ZERO years of experience.
 
 CANDIDATE PROFILE:
 {profile}
@@ -77,16 +71,38 @@ CANDIDATE PROFILE:
 JOBS TO EVALUATE (JSON list):
 {jobs_json}
 
-TASK:
-Review each job. Return a JSON array of the IDs of ONLY the jobs that are a good match:
-- Entry-level, junior, or new-graduate friendly (NOT requiring 3+ years experience)
-- Relevant to: mechanical engineering, product design, semiconductor, robotics, manufacturing, hardware
-- Located in NY/NJ/CT metro, Dallas/Austin TX, Silicon Valley, OR explicitly remote
-- REJECT: senior/staff/lead roles, software-only, unrelated industries, 5+ year requirements
+FEW-SHOT EXAMPLES:
 
-Return ONLY a raw JSON array of ID strings. No explanation, no markdown, no extra text.
-Example output: ["5461711151", "5375386397"]
-If no jobs match, return: []
+Example 1 (REJECT): 
+  Title: "Manufacturing Engineer"
+  Snippet: "...responsible for optimizing production for our power line products..."
+  Reason: Too generic. If it's a high-paying role ($100k+) and the snippet doesn't explicitly say "junior" or "entry", be suspicious and REJECT.
+
+Example 2 (REJECT):
+  Title: "Characterization Engineer"
+  Snippet: "...NY CREATES is seeking a highly skilled individual..."
+  Reason: "Highly skilled" and "leads projects" are keywords for senior roles. REJECT.
+
+Example 3 (SELECT):
+  Title: "Entry Level Designer"
+  Snippet: "Seeking university graduates for our 2026 rotational program..."
+  Reason: Explicitly mentions "university graduates" and "entry level". SELECT.
+
+CRITICAL FILTERING RULES:
+1. EXPERIENCE LEVEL (STRICT FILTER Mode):
+   - Candidate has 0 years full-time experience.
+   - SCAN for: "3+", "5+", "10+". If found, REJECT.
+   - SCAN for: "Senior", "Lead", "Staff", "Manager", "Principal", "II", "III". If found, REJECT.
+   - If the description is a TRUNCATED SNIPPET (ends in '…') and doesn't mention "entry" or "graduate", REJECT it. 
+   - We prefer to miss a good job than recommend a senior job.
+
+2. INDUSTRY RELEVANCE:
+   - Mechanical, Product Design, Semiconductor, Robotics, Manufacturing.
+
+3. DOUBT = REJECTION:
+   - This prevents the "sneaky" senior roles that use generic titles from slipping through.
+
+Return ONLY a raw JSON array of ID strings.
 """
 
 # ============================================================
@@ -136,17 +152,34 @@ def gemini_filter(jobs: list[dict], chunk_size: int = LLM_CHUNK_SIZE) -> list[st
     # Process in chunks to avoid token limits
     for i in range(0, len(jobs), chunk_size):
         chunk = jobs[i:i + chunk_size]
-        # Build minimal job summaries for the LLM (reduce tokens)
-        job_summaries = []
+        
+        # Heuristic filter: Still skip obvious Senior/Lead roles to save tokens.
+        # But we remove more moderate terms like "II" or "Staff" from the hard blacklist 
+        # to let the LLM decide, while keeping "Senior", "Lead", "Director" etc.
+        filtered_chunk = []
+        hard_blacklist = ["senior", "lead", "principal", "manager", "director", "architect", "vp", "head", "sr."]
         for job in chunk:
+            title_lower = (job.get("title") or "").lower()
+            if any(word in title_lower for word in hard_blacklist):
+                continue
+            filtered_chunk.append(job)
+
+        if not filtered_chunk:
+            print(f"  🤖 chunk {i//chunk_size + 1}: skipped all {len(chunk)} (senior/lead titles)")
+            continue
+
+        # Build minimal job summaries for the LLM
+        job_summaries = []
+        for job in filtered_chunk:
             co = job.get("company", {}).get("display_name", "N/A") if isinstance(job.get("company"), dict) else "N/A"
             loc = job.get("location", {}).get("display_name", "N/A") if isinstance(job.get("location"), dict) else "N/A"
+            # EXTEND SNIPPET to 2000 characters to catch "Requirements" sections
             job_summaries.append({
                 "id": job.get("id"),
                 "title": job.get("title"),
                 "company": co,
                 "location": loc,
-                "description_snippet": (job.get("description", "") or "")[:300],
+                "description_snippet": (job.get("description", "") or "")[:2000],
                 "salary_min": job.get("salary_min"),
                 "salary_max": job.get("salary_max"),
             })
@@ -169,11 +202,11 @@ def gemini_filter(jobs: list[dict], chunk_size: int = LLM_CHUNK_SIZE) -> list[st
             ids = json.loads(text)
             if isinstance(ids, list):
                 selected_ids.extend([str(id_) for id_ in ids])
-                print(f"  🤖 chunk {i//chunk_size + 1}: selected {len(ids)} of {len(chunk)} jobs")
+                print(f"  🤖 chunk {i//chunk_size + 1}: selected {len(ids)} of {len(filtered_chunk)} candidates")
         except Exception as e:
-            print(f"  ⚠️  LLM filter error on chunk {i//chunk_size + 1}: {e} — keeping all in chunk")
-            selected_ids.extend([str(job.get("id")) for job in chunk if job.get("id")])
-
+            print(f"  ⚠️  LLM filter error on chunk {i//chunk_size + 1}: {e}")
+            # In case of error, we now safely return nothing for this chunk instead of everything
+    
     return selected_ids
 
 

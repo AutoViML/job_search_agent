@@ -1,0 +1,47 @@
+Robotics Engineer
+
+❮ back to last search
+Radical AI
+New York, New York
+$64,545 per year - estimated ?
+Full time
+Apply for this job
+Radical AI, Inc. is an artificial intelligence company that is accelerating scientific research & development. We are at the forefront of innovation in the field of materials R&D, a critical driver for advancing our most cutting-edge industries and shaping the future. Breaking away from the traditionally slow and costly R&D process, Radical AI leverages artificial intelligence and machine learning to pioneer generative materials science. This innovative field blends AI, engineering, and materials science, revolutionizing how materials are created and discovered. Radical AI's approach speeds up R&D and addresses global challenges, setting new benchmarks in technology and sustainability.
+The opportunityAs a Software Engineer in the Robotics and Automation group at Radical AI, you will design and deploy systems to automate our material science research and discovery laboratory. You will specialize in robotics, automation, and perception software development.
+Your experience and vision will shape both the physical and systematic implementation of lab automation. You will collaborate closely with Mechatronics, Mechanical Engineering and Material Scientists to meet rigorous and sometimes dynamic design requirements at a profound deployment speed. Mission
+Architect and develop software systems that control and orchestrate robotic workcells for autonomous materials experimentation
+Design scalable control frameworks for flexible automation involving robots, motion systems, sensors, and lab instruments
+Collaborate with hardware, mechatronics, and science teams to translate experimental workflows into reliable automated processes
+Build and maintain APIs and services for scheduling, execution, monitoring, and data capture
+Develop simulation, testing, and validation tools to accelerate development and ensure system reliability
+Integrate 2D and 3D vision systems (cameras, lighting, depth sensors) with robotic manipulation, motion planning, and execution
+Optimize system performance, robustness, and throughput under rapid iteration cycles
+Contribute to technical direction, architecture decisions, and best practices across the robotics, perception, and automation software stack
+Mentor junior engineers and help establish engineering standards in a fast-growing organization
+Bring an attitude of collaboration and open-mindedness, to facilitate fearless and creative problem solving skills that empowers our team to ship world class technology at an unprecedented speed.
+About you
+Bachelor’s or Master’s degree in Computer Science, Robotics, Electrical Engineering, or a related field
+Four+ years of professional software engineering experience, with significant work in robotics or automation systems
+Strong proficiency in modern programming languages such as Python and C++
+Experience with robotic control frameworks (e.g., ROS/ROS2 or equivalent custom systems)
+Experience with physical simulation environments (e.g. MuJoCo, IsaacSim), and hardware-in-the-loop testing
+Solid understanding of motion planning, state machines, real-time or near-real-time control systems
+Experience integrating hardware systems including robots, sensors, vision systems, and industrial equipment
+Ability to work independently in a hands-on, development-oriented environment.
+Strong communication skills and ability to collaborate across engineering and scientific disciplines.
+Pluses
+Experience deploying autonomous systems in laboratory, manufacturing, or industrial environments
+Experience deploying autonomous mobile robots and working with simultaneous localization and mapping (SLAM)
+Experience with reinforcement learning and computer vision applied to robotics
+Familiarity with machine learning applied to robotics, experimentation, or optimization
+Prior startup experience or ownership of systems from early prototype through production
+What we offer
+A competitive compensation package also includes the best in benefits.
+Medical, dental, and vision insurance for you and your family
+Mental health and wellness support
+14+ company holidays per year
+401K
+Work closely with a team on the cutting edge of AI research.
+A mission: an opportunity to fundamentally change the way humanity makes progress through materials science discovery.
+Salary Description
+Competitive salary + Equity + Benefits; base pay offered may vary depending on job-related knowledge, skills, and experience.

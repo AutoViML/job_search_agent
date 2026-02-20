@@ -184,16 +184,32 @@ SEARCH OBJECTIVES:
 
 Return this exact JSON structure:
 {{
-  "candidate_profile": "A concise 5-8 line plain-text summary of the candidate (no name) covering: degree, graduation, GPA, key experiences, skills, target industries, target locations.",
+  "candidate_profile": "A concise summary of the candidate (no name) covering: degree, graduation date (essential for entry-level status), GPA, total full-time experience (state '0' or 'Entry-Level' clearly), key skills, and target industries. This profile will be used to filter jobs, so be precise about seniority.",
   "search_queries": ["list", "of", "4-6", "adzuna", "search", "query", "strings"],
   "search_locations": ["City1", "City2", "City3"],
   "distance_km": 40
 }}
 
+BROADENING STRATEGY (CRITICAL):
+For entry-level candidates or new grads, do NOT use overly specific queries like "entry level mechanical engineer in semiconductors" as they return very few results on job boards. 
+Instead, generate broad, high-recall keyword phrases. The goal is to cast a wide net (return 100s of jobs) and let the Gemini filter in the next step do the heavy lifting of finding the specific gems.
+
+FEW-SHOT EXAMPLES:
+
+Example 1 (New Grad Mechanical Engineer):
+  Search Objectives: "Looking for entry level mechanical engineering roles in robotics."
+  Good Queries: ["entry level engineer", "new grad engineer", "junior engineer", "mechanical engineer junior", "robotics engineer entry"]
+  Bad Queries: ["entry level mechanical engineer robotics"]
+
+Example 2 (Packaging Engineer):
+  Search Objectives: "I want to be a package engineer in semiconductors."
+  Good Queries: ["packaging engineer", "semiconductor engineer", "hardware engineer", "package design", "manufacturing engineer"]
+  Bad Queries: ["new grad packaging engineer in semiconductors"]
+
 Rules:
-- search_queries: short keyword phrases (2-4 words) that will be passed directly to a job search API. Make them specific but broad enough to return results (e.g. "entry level mechanical engineer", "packaging engineer semiconductor").
-- search_locations: city names only (e.g. "New York", "Dallas", "San Jose") — no states, no "metro area".
-- candidate_profile: used internally as context for the LLM filter. Keep it anonymous (no full name).
+- search_queries: 2-4 word keyword phrases. For entry-level candidates, ensure at least 3 queries are broad (e.g., "entry level engineer", "junior engineer").
+- search_locations: city names only (e.g. "New York", "Dallas", "San Jose") — no states.
+- candidate_profile: used internally as context for the LLM filter. Focus on degree and skills.
 - distance_km: integer, ~40 for 25-mile radius.
 """
 

@@ -41,7 +41,6 @@ my_profile.pdf
 # Search outputs (can be large; regenerate locally)
 outputs/test_results/
 outputs/search_results/
-outputs/raw_results.json
 outputs/*.csv
 outputs/*.json
 outputs/*.txt

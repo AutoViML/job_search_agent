@@ -116,6 +116,21 @@ uv run python run_search.py
 uv run python run_search.py
 ```
 
+---
+
+## 🧪 Testing Your Filters
+
+Want to see if a specific job listing will be filtered out by Gemini without running a full search? Use the built-in test bed:
+
+1.  **Paste the job text:** Open `test_job.txt` in the project root and paste the full text of the job description you want to evaluate.
+2.  **Run the test:**
+    ```bash
+    uv run python test_prompt.py
+    ```
+The agent will analyze the text using the same **"STRICT FILTER Mode"** logic as the main search script and provide a detailed decision and reasoning. This helps you refine your `search_objectives.txt` and understand the filtering rigor.
+
+---
+
 ### Output files:
 ```
 outputs/
