@@ -207,3 +207,4 @@ uv run python run_search.py
 ---
 
 *Built with Gemini AI + Adzuna Job Search API.*
+This is not an endorsement of any company or organization. This is a tool created for educational purposes only. 
