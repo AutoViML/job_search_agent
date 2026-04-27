@@ -1,4 +1,4 @@
-# 🤖 Adzuna Gemini Job Search Agent
+uv ru# 🤖 Adzuna Gemini Job Search Agent
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
@@ -20,6 +20,8 @@
 
 1.  **`init_search.py`** → Reads your `my_profile.pdf` and `search_objectives.txt`. It uses Gemini to generate optimized search parameters for `.env` and an AI-derived candidate profile (`_candidate_profile.txt`).
 2.  **`run_search.py`** → The complete engine. It automatically detects your experience level using Gemini and applies one of three **STRICT FILTER** modes (NEW GRAD, MID-LEVEL, or SENIOR). It then fetches jobs from Adzuna and filters them in parallel.
+3.  **`dedupe_results.py`** → Consolidates all CSV files in your results folder into one `consolidated_matches.csv`, removing duplicates across multiple search runs.
+4.  **`extract_fresh_jobs.py`** → Compares your latest search against your previous one and extracts only the *newly* found jobs into `fresh_job.csv`. This is your "to-apply" list.
 
 ---
 
@@ -91,11 +93,31 @@ uv run python run_search.py
 
 ---
 
+## 🧹 Step 4 — Manage Results
+
+After running multiple searches, use these tools to keep your application list clean.
+
+### Consolidate All Results:
+```bash
+uv run python dedupe_results.py
+```
+This merges all `curated_matches_*.csv` files into a single `consolidated_matches.csv`, stripping duplicates by Adzuna ID and company/role.
+
+### Find Only Fresh Jobs:
+```bash
+uv run python extract_fresh_jobs.py
+```
+This compares your **latest** search file against the **previous** one. It generates `fresh_job.csv` containing only the new jobs you haven't seen before. Use this to focus your daily applications.
+
+---
+
 ## 📂 Project Structure & Privacy
 
 ```
 ├── run_search.py           # 🚀 Main engine (Fetching + Filtering)
 ├── init_search.py          # 🔧 Config initializer
+├── dedupe_results.py       # 🧹 Result consolidator & deduplicator
+├── extract_fresh_jobs.py    # ✨ "New-only" job extractor
 ├── _candidate_profile.txt   # 👤 AI-summarized profile (Private)
 ├── .env                    # 🔑 API Keys (Private)
 ├── outputs/                # 📄 CSV matches (Private)
