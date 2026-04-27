@@ -1,4 +1,4 @@
-uv ru# 🤖 Adzuna Gemini Job Search Agent
+# 🤖 Adzuna Gemini Job Search Agent
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
@@ -22,6 +22,7 @@ uv ru# 🤖 Adzuna Gemini Job Search Agent
 2.  **`run_search.py`** → The complete engine. It automatically detects your experience level using Gemini and applies one of three **STRICT FILTER** modes (NEW GRAD, MID-LEVEL, or SENIOR). It then fetches jobs from Adzuna and filters them in parallel.
 3.  **`dedupe_results.py`** → Consolidates all CSV files in your results folder into one `consolidated_matches.csv`, removing duplicates across multiple search runs.
 4.  **`extract_fresh_jobs.py`** → Compares your latest search against your previous one and extracts only the *newly* found jobs into `fresh_job.csv`. This is your "to-apply" list.
+5.  **`auto_review_jobs.py`** → Visits every job URL in your latest `curated_matches_*.xlsx` (or `.csv`), scrapes the live page, and uses Gemini to fill in two columns: **"Fit for you"** (a plain-English verdict) and **"Job Requirements Comments"** (the key requirements). Rows you've already reviewed manually are never overwritten.
 
 ---
 
@@ -111,16 +112,57 @@ This compares your **latest** search file against the **previous** one. It gener
 
 ---
 
+## 🔍 Step 5 — Auto-Review Jobs with Gemini
+
+After a search run, your `curated_matches_*.xlsx` file contains the filtered job list but the **"Fit for you"** and **"Job Requirements Comments"** columns are blank. `auto_review_jobs.py` fills them in automatically by:
+
+1. **Finding** the latest canonical `curated_matches_*` file in `outputs/`
+2. **Scraping** each job's live URL for its full description
+3. **Calling Gemini** (`GEMINI_MODEL` from your `.env`) with your `search_objectives.txt` to produce a plain-English verdict and a bullet-point list of key requirements
+4. **Skipping** any row you've already filled in manually — your reviews are never overwritten
+5. **Saving** results back to the original file (with an automatic backup on the first run)
+
+### Usage
+
+```bash
+# Test on 3 rows first — saves to *_test_output.xlsx, never touches the original
+python3 auto_review_jobs.py --test
+
+# Test on a custom number of rows
+python3 auto_review_jobs.py --test 5
+
+# Full run — process all blank rows and update the original file
+python3 auto_review_jobs.py
+
+# Target a specific file instead of auto-detecting the latest
+python3 auto_review_jobs.py --file outputs/test_results/curated_matches_20260427_095915.xlsx
+```
+
+> **Note:** `--test` always starts from a clean slate. It copies the source file, clears the AI columns in that copy, processes N rows, and saves to `*_test_output.xlsx`. Re-running `--test` is safe and repeatable.
+
+### Output columns
+
+| Column | What Gemini writes |
+|---|---|
+| **Fit for you** | 1–2 sentence verdict: *Yes/No + reason* based on your objectives |
+| **Job Requirements Comments** | Bullet-point list of key requirements extracted from the live job page |
+
+---
+
 ## 📂 Project Structure & Privacy
 
 ```
 ├── run_search.py           # 🚀 Main engine (Fetching + Filtering)
 ├── init_search.py          # 🔧 Config initializer
 ├── dedupe_results.py       # 🧹 Result consolidator & deduplicator
-├── extract_fresh_jobs.py    # ✨ "New-only" job extractor
-├── _candidate_profile.txt   # 👤 AI-summarized profile (Private)
-├── .env                    # 🔑 API Keys (Private)
-├── outputs/                # 📄 CSV matches (Private)
+├── extract_fresh_jobs.py   # ✨ "New-only" job extractor
+├── auto_review_jobs.py     # 🔍 AI reviewer — fills Fit/Requirements columns
+├── search_objectives.txt   # 🎯 Your target roles, industries & locations
+├── _candidate_profile.txt  # 👤 AI-summarized profile (Private)
+├── .env                    # 🔑 API Keys & model settings (Private)
+├── outputs/                # 📄 XLSX/CSV matches (Private)
+│   ├── test_results/       #     Results from TEST_RUN=True runs
+│   └── search_results/     #     Results from full runs
 ```
 
 **Privacy Note:** Your PDF resume, `.env` keys, `_candidate_profile.txt`, and the entire `outputs/` folder are automatically excluded from git via `.gitignore`. Your data stays local.
@@ -161,13 +203,15 @@ Everything is controlled from `.env` and your source text files — no code chan
 | 4 queries × 5 locations | 20 calls | ~700 |
 | Free tier limit | 250 calls/month | ~12 full runs/month |
 
-## New User's workflow
+## 🆕 New User's Workflow
 ```bash
 git clone <your-repo>
-cp .env.example .env   # fill in your API keys
+cp .env.example .env        # fill in your API keys
 uv sync
-uv run python init_search.py
-uv run python run_search.py
+uv run python init_search.py   # generate your AI candidate profile
+uv run python run_search.py    # fetch & filter jobs → curated_matches_*.xlsx
+python3 auto_review_jobs.py --test   # test AI review on 3 rows
+python3 auto_review_jobs.py          # full AI review of all rows
 ```
 ---
 
