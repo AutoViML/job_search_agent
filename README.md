@@ -108,7 +108,7 @@ This merges all `curated_matches_*.csv` files into a single `consolidated_matche
 ```bash
 uv run python extract_fresh_jobs.py
 ```
-This compares your **latest** search file against the **previous** one. It generates `fresh_job.csv` containing only the new jobs you haven't seen before. Use this to focus your daily applications.
+This compares your **latest** search file against the **previous** one. It generates `fresh_jobs.tsv` (tab-separated) containing only the new jobs you haven't seen before. Use this to focus your daily applications. The TSV format avoids comma-quoting issues in complex job descriptions.
 
 ---
 
@@ -135,7 +135,7 @@ python3 auto_review_jobs.py --test 5
 python3 auto_review_jobs.py
 
 # Target a specific file instead of auto-detecting the latest
-python3 auto_review_jobs.py --file outputs/test_results/curated_matches_20260427_095915.xlsx
+python3 auto_review_jobs.py --file outputs/test_results/fresh_job.tsv
 ```
 
 > **Note:** `--test` always starts from a clean slate. It copies the source file, clears the AI columns in that copy, processes N rows, and saves to `*_test_output.xlsx`. Re-running `--test` is safe and repeatable.

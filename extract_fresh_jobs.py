@@ -9,7 +9,7 @@ Matching logic (same as dedupe_results.py):
   1. Adzuna Job ID (extracted from URL)
   2. Normalized Company + Role
 
-Saves the result as 'fresh_jobs.csv' in the test_results folder.
+Saves the result as 'fresh_jobs.tsv' (tab-separated) in the test_results folder.
 """
 
 import csv
@@ -27,7 +27,7 @@ if sys.platform == "win32":
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR    = Path(__file__).parent
 RESULTS_DIR = BASE_DIR / "outputs" / "test_results"
-OUTPUT_NAME = "fresh_job.csv"
+OUTPUT_NAME = "fresh_jobs.tsv"
 
 EXPECTED_HEADERS = ["Company", "Role", "Location", "Salary", "Link"]
 
@@ -122,7 +122,7 @@ def main():
     output_path = RESULTS_DIR / OUTPUT_NAME
     try:
         with open(output_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=EXPECTED_HEADERS, extrasaction="ignore")
+            writer = csv.DictWriter(f, fieldnames=EXPECTED_HEADERS, extrasaction="ignore", delimiter="\t")
             writer.writeheader()
             writer.writerows(fresh_rows)
         print(f"\n💾 Saved {len(fresh_rows)} fresh jobs to:\n   {output_path}")

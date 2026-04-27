@@ -83,6 +83,7 @@ def find_latest_curated_file() -> Path:
     patterns = [
         str(OUTPUTS_DIR / "**" / "curated_matches_*.xlsx"),
         str(OUTPUTS_DIR / "**" / "curated_matches_*.csv"),
+        str(OUTPUTS_DIR / "**" / "curated_matches_*.tsv"),
     ]
     candidates = []
     for pat in patterns:
@@ -289,17 +290,18 @@ def process_xlsx(file_path: Path, objectives: str, client, test_limit: int | Non
 
 
 # ─────────────────────────────────────────────
-# CSV helpers  (openpyxl can't read CSV — re-write as XLSX or plain csv)
+# CSV / TSV helpers
 # ─────────────────────────────────────────────
 
-def process_csv(file_path: Path, objectives: str, client, test_limit: int | None,
-                output_path: Path):
+def process_delimited(file_path: Path, objectives: str, client, test_limit: int | None,
+                      output_path: Path, delimiter: str = ","):
+    """Process a CSV or TSV file (delimiter controls which)."""
     import csv
 
-    with open(file_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
+    with open(file_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=delimiter)
         rows   = list(reader)
-        fieldnames = reader.fieldnames or []
+        fieldnames = list(reader.fieldnames or [])
 
     if FIT_COL not in fieldnames:
         fieldnames = [fieldnames[0], FIT_COL] + fieldnames[1:]
@@ -343,11 +345,24 @@ def process_csv(file_path: Path, objectives: str, client, test_limit: int | None
         time.sleep(SLEEP_BETWEEN)
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore",
+                                delimiter=delimiter)
         writer.writeheader()
         writer.writerows(rows)
 
     return processed, skipped, total_blank
+
+
+def process_csv(file_path: Path, objectives: str, client, test_limit: int | None,
+                output_path: Path):
+    return process_delimited(file_path, objectives, client, test_limit, output_path,
+                             delimiter=",")
+
+
+def process_tsv(file_path: Path, objectives: str, client, test_limit: int | None,
+                output_path: Path):
+    return process_delimited(file_path, objectives, client, test_limit, output_path,
+                             delimiter="\t")
 
 
 # ─────────────────────────────────────────────
@@ -430,8 +445,12 @@ def main():
         processed, skipped, total_blank = process_csv(
             working_path, objectives, client, test_limit, output_path
         )
+    elif suffix == ".tsv":
+        processed, skipped, total_blank = process_tsv(
+            working_path, objectives, client, test_limit, output_path
+        )
     else:
-        sys.exit(f"❌  Unsupported file type: {suffix}")
+        sys.exit(f"❌  Unsupported file type: {suffix} (expected .xlsx, .csv, or .tsv)")
 
     # ── Summary ───────────────────────────────────────────────────
     remaining = total_blank - processed
